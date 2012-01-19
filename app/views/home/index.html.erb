@@ -1,0 +1,26 @@
+<%
+if @unsigned
+%>	<%= raw "<h2>Please sign in to continue</h2>" %>
+	
+	<%= form_tag("/home/sign", :method => "post") do %>
+		
+		<%= label_tag(:user, "User:") %>
+		<%= text_field_tag(:user) %>
+				
+		<%= raw "<br/>" %>
+				
+		<%= label_tag(:pass, "Password:") %>		
+		<%= password_field_tag(:pass) %>
+				
+		<%= raw "<br/>" %>
+				
+		<%= submit_tag("Sign In") %>
+			
+	<% end %><%
+else
+%>	<%= link_to "Profile", :controller => "home", :action => "profile" %>
+	<%= link_to "Log Off", :controller => "home", :action => "logoff" %>
+	
+	<%= raw "<h1>Hello, #{@user}!</h1>" %><%
+end
+%>
