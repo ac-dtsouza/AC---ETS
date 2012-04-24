@@ -1,0 +1,44 @@
+<%= content_tag(:h3, @header, :style => "display: inline-block; width: auto;") %>
+<%= content_tag :a, :style => "float: right; padding: 0em 1em 0.5em 1em; width: 10%; display: inline-block;", :href => "/print/#{@date}" do -%><%= @print %><%= image_tag("printer.png", :width => "25%", :style => "margin-left: 2em; display: inline;") %><% end -%>
+<article id="frequency_head">
+
+	<ul id="month_list">
+		<%= raw @months %>
+	</ul>
+
+</article>
+
+<article id="frequency_body">
+
+<%= render :template => 'root/month' %>
+<%= content_tag :div, :id => "month_hours", :style => "clear: left;" do -%>
+
+	<%= content_tag(:p, @month, :class => "bold") %>
+	<%= content_tag(:p, @month_expected) %>
+	<%= content_tag(:p, @month_worked) %>
+	<%= content_tag :p do -%><%= @month_extra %><%= content_tag(:span, @mextra, :class => (@mclass unless @mclass.blank?)) %><% end -%>
+<% end -%>
+
+
+<%= content_tag :div, :id => "week_hours" do -%>
+
+	<%= content_tag(:p, @week, :class => "bold") %>
+	<%= content_tag(:p, @week_expected) %>
+	<%= content_tag(:p, @week_worked) %>
+	<%= content_tag :p do -%><%= @week_extra %><%= content_tag(:span, @extra, :class => (@class unless @class.blank?)) %><% end -%>
+	<%= content_tag(:span, @warn12, :class => "red bold") if !@warn12.nil? %>
+<% end if @show_week -%>
+
+
+<%= content_tag :div, :id => "current_bank", :style => "margin-top: 0.5em; clear: left;", :class => "bold" do -%>
+
+	<%= content_tag(:p) do -%><%= @current_bank %><%= content_tag(:span, @updated_month, :class => (@class_month unless @class_month.blank?)) %><% end -%>
+<% end if @hide_future_date -%>
+
+
+<%= content_tag :div, :id => "new_bank", :style => "margin-top: 0.5em;", :class => "bold" do -%>
+
+	<%= content_tag(:p) do -%><%= @new_bank %><%= content_tag(:span, @updated_week, :class => (@class_week unless @class_week.blank?)) %><% end -%>
+<% end if @hide_future_date -%>
+
+</article>

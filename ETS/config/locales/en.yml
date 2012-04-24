@@ -1,0 +1,69 @@
+en:
+  ets: "Electronic Time Sheet"
+  welcome: "Welcome, "
+  today: "Today is "
+  
+  personal: "Personal Information"
+  frequency: "Frequency Control"
+  logoff: "Log Off"
+  
+  admin_options: "Administrator Options"
+  edit: "Edit Employee"
+  parameters: "Edit Parameters"
+  setholiday: "Set Up Holidays"
+  
+  header_profile: "Profile"
+  header_frequency: "Frequency"
+  header_edit: "Edit"
+  header_parameters: "Parameters"
+  
+  holiday: "Holiday"
+  cal_date: "Date"
+  addremove_holiday: "Add/Remove Holiday"
+  
+  profile_name: "Name: "
+  profile_position: "Position: "
+  profile_workload: "Workload: "
+  profile_bank: "Accumulated Bank of Hours: "
+  profile_last_reset: "Last reset: "
+  profile_next_reset: "Next reset: "
+  sum_hours: "Worked Hours: "
+  
+  alert_timestamp: "Reminder: All timestamps must form intervals by the end of the day. Only intervals are accounted for."
+  alert_12hours: "Reminder: Avoid reaching 12 positive extra hours on this week."
+  
+  frequency_exp: "Expected work hours: "
+  frequency_count: "Worked hours: "
+  frequency_ecount: "Extra hours: "
+  
+  print: "Print"
+  
+  current_bank: "Initial bank of hours: "
+  new_bank: "Final bank of hours: "
+  justified_abscence: "Justified abscence: "
+  
+  week: "Week"
+  month: "Month"
+  
+  btn_oncall: "Fill In On Call Hour"
+  btn_check: "Check"
+  btn_rectify: "Rectify"
+  btn_justify: "Justify"
+  btn_save: "Save"
+  btn_cancel: "Cancel"
+  btn_remove: "Remove"
+  btn_reset: "Reset Bank of Hours"
+  btn_edit: "Edit"
+  btn_sign: "Sign In"
+  
+  newuser: "Create user"
+  
+  msg_sign: "You have to sign in to continue."
+  msg_unauth: "You have to sign in to access this page!"
+  msg_invalid_credentials: "Login failed!"
+  msg_nouser: "This user has not been registered yet."
+  
+  select_employee: "Select the employee"
+  date:
+    formats:
+      month_and_year: ! '%b/%Y'

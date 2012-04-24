@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title><%= t(:ets) %></title>
+<%= stylesheet_link_tag    "application" %>
+<%= raw "<link href=\"/printer.css\" media=\"all\" rel=\"stylesheet\" type=\"text/css\" />" if params[:print].present? %>
+<%= javascript_tag "var LOCALE = '#{session[:locale]}';" %>
+<%= javascript_include_tag "application" %>
+<%= csrf_meta_tags %>
+</head>
+<body>
+
+<header id="header">
+<%= raw @menu unless @menu.blank? %>
+</header>
+
+<section id="content"<%= @style %>>
+	<% flash.each do |key, value| %>
+	<div class="flash <%= key %> round"><%= value %></div>
+	<% end %>
+<%= yield %>
+</section>
+
+<footer id="footer">Avenue Code - 2012</footer>
+
+</body>
+</html>

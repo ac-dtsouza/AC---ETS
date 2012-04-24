@@ -1,0 +1,271 @@
+class RootController < ApplicationController
+  
+  class Employee < RootController
+	attr_accessor :fullname
+	attr_accessor :name
+	attr_accessor :position
+	attr_accessor :workload
+	attr_accessor :bank
+	def initialize(fullname, name, position, workload, bank)
+		@fullname = fullname
+		@name = name
+		@position = translate(position)
+		@workload = toHours(workload)
+		@bank = toHours(bank)
+	end
+  end
+	
+	def translate(str)
+		str = I18n.translate(str).to_s
+		str.match(/missing/) ? "" : str
+	end
+	
+	def days_in_month(year, month)
+		(Date.new(year, 12, 31) << (12-month)).day
+	end
+	
+	def toXX(int)
+		int = "0"+int.to_s if int < 10
+		int.to_s
+	end
+
+	def toHours(int)
+		toXX(int) + ":00:00"
+	end
+	
+	def toHHMMSS(sec)
+		
+		h = (sec/3600).to_i
+		sec -= h*3600
+		
+		m = (sec/60).to_i
+		sec -= m*60
+		
+		[toXX(h), toXX(m), toXX(sec.to_i)].join(":")
+	end
+
+	def br(str)
+		"\n"+str
+	end
+	
+	def ln(str)
+		str+"\n"
+	end
+	
+	def lt(str, int=1)
+		if int > 1
+			lt("\t"+str, int-1)
+		else
+			"\t"+str
+		end
+	end
+
+	def li(id, item, locale)
+		href = locale.nil? ? "/root/"+id : "/root/"+id+"?locale="+locale
+		"<li id='#{id}'><a href='#{href}'>#{item.to_s}</a></li>"
+	end
+	
+	def ul(id, list) # return list (ul) with id='id' and elements (li) from Array 'list'
+		ul = ln lt("<ul id='#{id}'>")
+		list.each{ |e| ul += ln lt(e, 2) }
+		ul += lt("</ul>")
+		ul
+	end
+
+  def menu(admin, locale=nil)
+	menu = ul("menu", [li("profile",t(:personal),locale), li("frequency",t(:frequency),locale), li("logoff",t(:logoff),locale)])
+	!admin ? menu : menu + br( ul("menu_admin", [li("reset",t(:reset),locale), li("edit",t(:edit),locale), li("setholiday",t(:setholiday),locale)]) )
+  end
+  
+  def logoff
+	if session[:locale].blank?
+		redirect_to "/"
+	else
+		redirect_to "/?locale="+session[:locale]
+	end
+  end
+  
+  def index
+	# AUTHENTICATION VARIABLES
+	@user = "Douglas Souza"
+	session[:admin] = true
+	session[:locale] = "pt-BR" # Default language
+	session[:locale] = params[:locale] unless params[:locale].blank? # Change language IF specified
+	@menu = menu(session[:admin], session[:locale])
+	
+	# USER INTERFACE VARIABLES
+	@date = Date.current
+	@date_long = translate(:today) + I18n.localize(@date, :format => :long)
+	@welcome = translate(:welcome) + @user + "!"
+  end
+  
+  def profile
+	@header = translate(:profile_header)
+	@menu = menu(session[:admin])
+	
+	@name = translate(:profile_name)
+	@position = translate(:profile_position)
+	@workload = translate(:profile_workload)
+	@bank_of_hours = translate(:profile_bank)
+	@employee = Employee.new( "Douglas Thiago Souza", "Douglas Souza", :intern, 5, 0 )
+  end
+  
+  def frequency
+	# USER INTERFACE VARIABLES
+	@header = t(:frequency_header)
+	@menu = menu(session[:admin])
+	@months = ""
+	
+	end_date = Date.current
+	ini_date = end_date - 5.months # Should be the first month after the last reset
+	selected = params[:month].present? ? Date.parse(params[:month]) : Date.current
+	begin
+		link = I18n.localize(ini_date, :format => :month_and_year)
+		jump = ""
+		current = ""
+		
+		if ini_date < end_date
+			jump = "\n\t\t"
+		end
+		
+		if ini_date == selected
+			current = " class='current'"
+			link = "<span style='display:inline-block; background-color: #FFFFBB; width: 95%; line-height: 2.5em;'>"+link+"</span>"
+		else
+			link = "<a href='/root/frequency?month=#{ini_date}'>"+link+"</a>"
+		end
+		
+		@months += "<li rel='"+ini_date.to_s+"'#{current}>#{link}</li>#{jump}"
+		ini_date += 1.month
+	end while ini_date <= end_date
+	
+	month(selected) # Run def month
+  end
+  
+  def month(sel)
+	now = Date.current
+	@date = now
+	@date = sel if !sel.blank?
+	@date = Date.parse(params[:date]) if params[:date].present?
+	
+	# Connect to db to check if month is closed
+	@closed = true if @date < now
+	
+		# Holidays
+		session['20121#nowork'] = [1]
+		session['20122#nowork'] = [21]
+		session['20123#nowork'] = []
+		session['20124#nowork'] = [6,21]
+		session['20125#nowork'] = [1]
+		session['20126#nowork'] = [7]
+		session['20127#nowork'] = []
+		session['20128#nowork'] = [15]
+		session['20129#nowork'] = [7]
+		session['201210#nowork'] = [12]
+		session['201211#nowork'] = [2,15]
+		session['201212#nowork'] = [8,25]
+	
+	@html = ln("<ul id='month'#{" rel='closed'" if @closed}>")
+	for x in 0..6
+		@html += "<li class='label bg_grey'>#{t('date.abbr_day_names')[x]}</li>"
+	end
+	for i in 1..days_in_month(@date.year, @date.month)
+		@weekday = Date.new(@date.year,@date.month,i).strftime('%u').to_i
+		if i==1 && @weekday != 7
+			@html += ln("<li class='bg_grey'>&nbsp;</li>")
+			for j in 2..@weekday
+				@html += ln("<li>&nbsp;</li>")
+			end
+		end
+		@class = ""
+		@class += " bg_grey" if (@weekday == 6) || (@weekday == 7)
+		@class += " clr_left" if (@weekday == 7)
+		@class += " holiday" if (@weekday == 7) || ( !session[@date.year.to_s+@date.month.to_s+'#nowork'].nil? && session[@date.year.to_s+@date.month.to_s+'#nowork'].find{ |item| item == i } == i )
+		@class += " current" if (i == @date.day && now.month == @date.month)
+		if (@date < now)||(i <= @date.day)
+		@html += br("<li rel='#{@date.change(:day => i).to_s}' class='day active#{@class}'><a href='/root/day?date=#{@date.change(:day => i).to_s}'>#{i.to_s}</a></li>")
+		else
+		@html += br("<li rel='#{@date.change(:day => i).to_s}' class='day#{@class}'>#{i.to_s}</li>")
+		end
+	end
+	@html += ln("</ul>")
+  end
+  
+  def day
+	date = Date.parse(params[:date]) if params[:date].present?
+	now = Date.current
+	check = date == now ? true : false
+	rectify = true if params[:closed].nil? || !params[:closed].match(/closed/)
+	rectify = false if date > now
+	
+	@menu = menu(session[:admin])
+	@html = ln(lt("<article id='timestamps'>"))
+	count = 0
+
+	# Connect to db to retrieve checks for the day for the logged user
+	# Check.where(:user => user, :date => date).each do |c|
+	# @html += c.timestamp
+	# count = count.to_i + 1
+	# end
+	
+	if session[:hash].nil?
+		session[:hash] = {}
+		session[:hash][Date.parse("2012-03-01").to_s] = [ ["Douglas Souza", "08:25:00"], ["Douglas Souza", "12:21:00"], ["Douglas Souza", "12:43:00"] ]
+		session[:hash][Date.parse("2012-02-29").to_s] = [ ["Douglas Souza", "09:06:00"], ["Douglas Souza", "12:35:00"], ["Douglas Souza", "13:10:00"] ]
+		session[:hash][Date.parse("2012-02-28").to_s] = [ ["Douglas Souza", "10:00:00"], ["Douglas Souza", "12:00:00"], ["Douglas Souza", "13:00:00"] ]
+		session[:hash][Date.parse("2012-02-27").to_s] = [ ["Douglas Souza", "10:00:00"], ["Douglas Souza", "12:00:00"], ["Douglas Souza", "13:00:00"] ]
+		session[:hash][Date.parse("2012-02-26").to_s] = [ ["Douglas Souza", "10:00:00"], ["Douglas Souza", "12:00:00"], ["Douglas Souza", "13:00:00"], ["Douglas Souza", "19:00:00"] ]
+		session[:hash][Date.parse("2012-02-25").to_s] = [ ["Douglas Souza", "10:00:00"], ["Douglas Souza", "12:00:00"], ["Douglas Souza", "13:00:00"], ["Douglas Souza", "15:00:00"], ["Douglas Souza", "15:30:00"], ["Douglas Souza", "19:30:00"] ]
+	end
+	arr = session[:hash][date.to_s]
+	d1 = nil
+	d2 = nil
+	if !arr.nil?
+		arr.each do |x| 
+			# if x[0] == session[:user]
+			if count%2 == 0
+				d1 = DateTime.strptime(date.to_s+" "+x[1],"%Y-%m-%d %H:%M:%S").to_time
+			else
+				if d2.nil?
+					d2 = DateTime.strptime(date.to_s+" "+x[1],"%Y-%m-%d %H:%M:%S").to_time - d1
+				else
+					d2 += DateTime.strptime(date.to_s+" "+x[1],"%Y-%m-%d %H:%M:%S").to_time - d1
+				end
+			end
+			@html += ln(lt("<p>#{date} #{x[1]}</p>",2))
+			count += 1
+			# end
+		end
+	end
+	
+	# Show sum of intervals
+	@html += ln(lt("<p id='total'>#{t(:sum_hours)}<label>#{toHHMMSS(d2)}</label></p>",2)) if !d2.blank? ## WRONG!!!!!!! Only counting full hours
+	
+	# Show button to check again if and only if it's the current day
+	@html += ln(lt("<a id='check' href='/root/check'>#{t(:btn_check)}</a>",2)) if check
+	
+	# Show button to rectify inputs if and only if the month wasn't closed by the user before
+	@html += ln(lt("<a id='rectify' href='/root/rectify?date=#{date.to_s}'>#{t(:btn_rectify)}</a>",2)) if rectify
+	
+	# Show button to check again if and only if it's the current day
+	@html += ln(lt("<a id='oncall' href='/root/oncall?date=#{date.to_s}'>#{t(:btn_oncall)}</a>",2))
+	
+	@html += ln(lt("<p id='alert'>#{t(:alert_timestamp)}</p>",2)) if (count%2 != 0) # && (date == now)
+	
+	@html += lt("</article>")
+  end
+  
+  def check
+	if session[:hash][Date.current.to_s].nil?
+		session[:hash][Date.current.to_s] = [ ["Douglas Souza", Time.now.strftime("%H:%M:%S")] ]
+	else
+		session[:hash][Date.current.to_s] << ["Douglas Souza", Time.now.strftime("%H:%M:%S")]
+	end
+	redirect_to "/root/day?date=#{Date.current.strftime("%Y-%m-%d")}" unless params[:ajax].present?
+  end
+  
+  def rectify
+	
+  end
+
+end

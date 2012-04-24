@@ -1,0 +1,437 @@
+class RootController < ApplicationController
+  
+  before_filter :authenticate_user!, :except => [:index, :auth, :failure]
+	
+	def translate(str)
+		str = I18n.translate(str).to_s
+		str.match(/missing/) ? "" : str
+	end
+	
+	def days_in_month(year, month)
+		(Date.new(year, 12, 31) << (12-month)).day
+	end
+	
+	def toXX(int)
+		int = "0"+int.to_s if int < 10
+		int.to_s
+	end
+
+	def toHours(int)
+		toXX(int) + ":00:00"
+	end
+	
+	def toHHMMSS(sec)
+		
+		h = (sec/3600).to_i
+		sec -= h*3600
+		
+		m = (sec/60).to_i
+		sec -= m*60
+		
+		[toXX(h), toXX(m), toXX(sec.to_i)].join(":")
+	end
+
+	def br(str)
+		"\n"+str
+	end
+	
+	def ln(str)
+		str+"\n"
+	end
+	
+	def lt(str, int=1)
+		if int > 1
+			lt("\t"+str, int-1)
+		else
+			"\t"+str
+		end
+	end
+
+	def li(id, item)
+		#href = locale.nil? ? "/root/"+id : "/root/"+id+"?locale="+locale
+		"<li id='#{id}'><a href='#{"/root/#{id}"}'>#{item.to_s}</a></li>"
+	end
+	
+	def ul(id, list) # return list (ul) with id='id' and elements (li) from Array 'list'
+		ul = ln lt("<ul id='#{id}'>")
+		list.each{ |e| ul += ln lt(e, 2) }
+		ul += lt("</ul>")
+		ul
+	end
+
+  def menu
+	menu = ul("menu", [li("profile",t(:personal)), li("frequency",t(:frequency)), li("logoff",t(:logoff))])
+	!Admin.is_admin?(user_id) ? menu : menu + br( ul("menu_admin", [li("edit",t(:edit)), li("parameters",t(:parameters)), li("setholiday",t(:setholiday))]) )
+  end
+  
+  def remove_button(remove, date=nil, default=nil)
+	if default.nil?
+		"<a class='button' style='visibility: hidden;' href='#'>#{remove}</a>"
+	else
+		"<a class='button' href='/root/check?remove=1&key=#{default}&date=#{date}&rectify=1'>#{remove}</a>"
+	end
+  end
+  
+  def time_input(date, default=nil)
+	html = ""
+	save = t(:btn_save)
+	remove = t(:btn_remove)
+	tmp = "<input type='hidden' name='rectify' value='1' /><input type='hidden' name='list' value='1' /><input type='hidden' name='date' value='#{date}' />"
+	if default.nil?
+		html = ln( lt("<form id='nosubmit' action='/root/check' method='GET'>#{tmp}<p class='time'><input id='time' name='time' type='text' />#{remove_button(remove)}<input class='button' type='submit' value='#{save}'/></p></form>",2) )
+	else
+		html = ln( lt("<form id='nosubmit' name='ts_#{default}' action='/root/check' method='GET'><input type='hidden' name='key' value='#{default}' />#{tmp}<p class='time'><input id='time' name='time' type='text' value='#{default}' />#{remove_button(remove, date, default)}<input class='button' type='submit' value='#{save}'/></p></form>",2) )
+	end
+  end
+  
+  def find_user
+	# Check db for uid
+	session[:db_user] = User.employee(user_id)[0] if session[:db_user].blank?
+	!session[:db_user].blank?
+  end
+  
+  class Employee < RootController
+	attr_accessor :id
+	attr_accessor :name
+	attr_accessor :position
+	attr_accessor :workload
+	attr_accessor :bank
+	attr_accessor :last_reset
+	attr_accessor :next_reset
+	def initialize(id, name, position, workload, bank, last_reset, next_reset)
+		@id = id
+		@name = name
+		@position = position
+		@workload = !workload.blank? ? toHours(workload) : toHours(8)
+		@bank = !bank.blank? ? toHHMMSS(bank*3600) : "00:00:00"
+		@last_reset = !last_reset.blank? ? last_reset.to_s[0..9] : ""
+		@next_reset = !next_reset.blank? ? next_reset.to_s[0..9] : ""
+	end
+  end
+  
+  def logoff
+	locale = ( session[:locale].blank? || session[:locale].match(/pt-BR/) ) ? "" : "?locale=#{session[:locale]}"
+	reset_session
+	redirect_to "/#{locale}"
+  end
+  
+  def index
+	if user_signed_in?
+		@html = ln lt "<h1>#{translate(:today) + I18n.localize(Date.current, :format => :long)}</h1>"
+		@html += ln lt "<h2>#{translate(:welcome) + user_name}!</h2>"
+		if find_user
+			session[:employee] = Employee.new(session[:db_user]["user_id"], session[:db_user]["user_name"], session[:db_user]["position_desc_#{session[:locale][0..1]}"], session[:db_user]["position_workload"], session[:db_user]["bank_hours"], session[:db_user]["last_reset"], session[:db_user]["next_reset"])
+			session[:menu] = menu
+			@menu = session[:menu]
+		else
+			@html += ln lt "<p class='spaceup flash'>#{user_id} - #{t(:msg_nouser)}</p>"
+			@html += ln lt "<form action='newuser' class='spaceup'>"
+			@html += ln lt "<input type='hidden' name='user_id' value='#{user_id}'/>", 2
+			@html += ln lt "<input type='hidden' name='user_name' value='#{user_name}'/>", 2
+			#@html += ln lt "<input type='submit' class='button' value='#{t(:newuser)}'/>", 2
+			#@html += ln lt "<a href='root/logoff' class='button'>#{t(:logoff)}</a>", 2
+			@html += ln lt "</form>"
+		end
+	else
+		@html = lt "<p class='spaceup spaceleft'>#{t(:msg_sign)} <a class='link' href='/auth/google'>#{t(:btn_sign)}.</a></p>"
+	end
+  end
+  
+  def profile
+	@header = translate(:header_profile)
+	@menu = session[:menu]
+	
+	@id = "ID: "
+	@name = translate(:profile_name)
+	@position = translate(:profile_position)
+	@workload = translate(:profile_workload)
+	@bank_of_hours = translate(:profile_bank)
+	@last_reset = translate(:profile_last_reset)
+	@next_reset = translate(:profile_next_reset)
+	@employee = session[:employee]
+  end
+  
+  def frequency
+	# USER INTERFACE VARIABLES
+	@header = t(:header_frequency)
+	@menu = session[:menu]
+	@months = ""
+	
+	#end_date = Date.current
+	#ini_date = end_date - 5.months # Should be the first month after the last reset
+	ini_date = Date.parse(session[:employee].last_reset)
+	end_date = ini_date + 5.months
+	selected = params[:month].present? ? Date.parse(params[:month]) : Date.current
+	begin
+		link = I18n.localize(ini_date, :format => :month_and_year)
+		jump = ""
+		current = ""
+		
+		if ini_date < end_date
+			jump = "\n\t\t"
+		end
+		
+		if ini_date == selected
+			current = " class='current'"
+			link = "<span style='display:inline-block; background-color: #FFFFBB; width: 95%; line-height: 2.5em;'>"+link+"</span>"
+		else
+			link = "<a href='/root/frequency?month=#{ini_date}'>"+link+"</a>"
+		end
+		
+		@months += "<li rel='"+ini_date.to_s+"'#{current}>#{link}</li>#{jump}"
+		ini_date += 1.month
+	end while ini_date <= end_date
+	
+	month(selected) # Run def month
+  end
+  
+  def month(sel)
+	# Show calendar and options for the month
+	now = Date.current
+	@date = now
+	@date = sel if !sel.blank?
+	@date = Date.parse(params[:date]) if params[:date].present?
+	
+	# Connect to db to check if month is closed
+	@closed = true if @date < now
+	
+		# Holidays
+		session['20121#nowork'] = [1]
+		session['20122#nowork'] = [21]
+		session['20123#nowork'] = []
+		session['20124#nowork'] = [6,21]
+		session['20125#nowork'] = [1]
+		session['20126#nowork'] = [7]
+		session['20127#nowork'] = []
+		session['20128#nowork'] = [15]
+		session['20129#nowork'] = [7]
+		session['201210#nowork'] = [12]
+		session['201211#nowork'] = [2,15]
+		session['201212#nowork'] = [8,25]
+	
+	@html = ln("<ul id='month'#{" rel='closed'" if @closed}>")
+	for x in 0..6
+		@html += "<li class='label bg_grey'>#{t('date.abbr_day_names')[x]}</li>"
+	end
+	for i in 1..days_in_month(@date.year, @date.month)
+		@weekday = Date.new(@date.year,@date.month,i).strftime('%u').to_i
+		if i==1 && @weekday != 7
+			@html += ln("<li class='bg_grey'>&nbsp;</li>")
+			for j in 2..@weekday
+				@html += ln("<li>&nbsp;</li>")
+			end
+		end
+		@class = ""
+		@class += " bg_grey" if (@weekday == 6) || (@weekday == 7)
+		@class += " clear_left" if (@weekday == 7)
+		@class += " holiday" if (@weekday == 7) || ( !session[@date.year.to_s+@date.month.to_s+'#nowork'].nil? && session[@date.year.to_s+@date.month.to_s+'#nowork'].find{ |item| item == i } == i )
+		@class += " current" if (i == @date.day && now.month == @date.month)
+		if (@date < now)||(i <= @date.day)
+		@html += br("<li rel='#{@date.change(:day => i).to_s}' class='day active#{@class}'><a href='/root/day?date=#{@date.change(:day => i).to_s}'>#{i.to_s}</a></li>")
+		else
+		@html += br("<li rel='#{@date.change(:day => i).to_s}' class='day#{@class}'>#{i.to_s}</li>")
+		end
+	end
+	@html += ln("</ul>")
+  end
+  
+  def day
+	# Show options for day of month
+	date = Date.parse(params[:date]) if params[:date].present?
+	now = Date.current
+	check = date == now ? true : false
+	rectify = true if params[:closed].nil? || !params[:closed].match(/closed/)
+	rectify = false if date > now
+	
+	@menu = session[:menu]
+	@html = ln(lt("<h2 class='spacedown'>#{l(date, :format => :long)}</h2>"))
+	@html += ln(lt("<article id='timestamps'>"))
+	count = 0
+
+	# Connect to db to retrieve checks for the day for the logged user
+	session[date.to_s] = Check.day(user_id, date.to_s)
+	d1 = nil
+	d2 = nil
+	count = 0
+	if !session[date.to_s].blank?
+		session[date.to_s].each do |x| 
+			# if x[0] == session[:user]
+			db_date = (date.to_s+" "+x["time"]).to_time
+			if count%2 == 0
+				d1 = db_date
+			else
+				if d2.nil?
+					d2 = db_date - d1
+				else
+					d2 += db_date - d1
+				end
+			end
+			@html += ln(lt("<p>#{db_date.to_s(:db)[-8..-1]}</p>",2))
+			count += 1
+			# end
+		end
+	end
+	
+	# Show sum of intervals
+	@html += ln(lt("<p id='total' class='spaceup'>#{t(:sum_hours)}<label>#{toHHMMSS(d2)}</label></p>",2)) if !d2.blank?
+	
+	# Show button to check again if and only if it's the current day
+	@html += ln(lt("<a id='check' class='button' href='/root/check'>#{t(:btn_check)}</a>",2)) if check
+	
+	# Show button to rectify inputs if and only if the month wasn't closed by the user before
+	@html += ln(lt("<a id='rectify' class='button' href='/root/rectify?date=#{date.to_s}'>#{t(:btn_rectify)}</a>",2)) if rectify
+	
+	# Show button to check again if and only if it's the current day
+	@html += ln(lt("<a id='oncall' class='button' href='/root/oncall?date=#{date.to_s}'>#{t(:btn_oncall)}</a>",2))
+	
+	@html += ln(lt("<p id='alert'>#{t(:alert_timestamp)}</p>",2)) if (count%2 != 0) # && (date == now)
+	
+	@html += lt("</article>")
+  end
+  
+  def checkin(time, date, key=nil)
+  # Create a new timestamp
+	time = Time.now.strftime("%H:%M:%S") if time.nil?
+	date = Date.current.to_s if date.nil?
+	timestamp = "#{date} #{time}"
+	if key.nil?
+		Check.insert(user_id, timestamp)
+	else
+		Check.update(user_id, date, time, key)
+	end
+	return date
+  end
+  
+  def check(time=nil, date=nil)
+	# Mark a timestamp for the user
+	date = params[:date] if date.nil?
+	
+	if params[:remove].present?
+		if params[:key].present?
+			Check.delete(user_id, Time.parse("#{date} #{params[:key]}").to_s(:db))
+		end
+	else
+		time = params[:time] if time.nil?
+		date = checkin(time, date, params[:key])
+	end
+	
+	if params[:rectify].present?
+		session[date.to_s] = Check.day(user_id, date.to_s)
+		redirect_to "/root/rectify?date=#{date}"
+	else
+		redirect_to "/root/day?date=#{date}"
+	end
+  end
+  
+  def rectify
+	# Rectify incorrect timestamps
+	@menu = session[:menu]
+	date = params[:date]
+	@html = ln(lt("<h2 class='spacedown'>#{l(Date.parse(date), :format => :long)}</h2>"))
+	@html += ln(lt("<article id='timestamps'>"))
+	
+	if !session[date.to_s].nil?
+		session[date.to_s].each do |x| 			
+			@html += time_input(date, x["time"])
+		end
+	end
+	
+	@html += time_input(date)
+	
+	@html += lt("</article>")
+  end
+  
+  def oncall(hash=nil)
+	# Set up on-call hours
+	@menu = session[:menu]
+	date = params[:date]
+	save = t(:btn_save)
+	remove = t(:btn_remove)
+	
+	@html = ln(lt("<h2 class='spacedown'>#{l(Date.parse(date), :format => :long)}</h2>"))
+	@html += ln(lt("<article id='timestamps'>"))
+	
+	@html += ln lt("<span><input id='time' name='time' type='text' class='clear_left' /><a class='button' style='visibility: hidden;' href='#remove'>#{remove}</a><a class='button' href='#save'>#{save}</a></span>",2)
+	
+	@html += lt("</article>")
+  end
+  
+  def edit_tag(str, edit, id)
+  # Generate the proper tag for "def user_profile(emp, edit)"
+	edit ? "<input id='#{id}' value='#{str}' />" : "<label>#{str}</label>"
+  end
+  
+  def user_profile(emp, edit)
+  # Generate a user profile for "def edit"
+	name = translate(:profile_name)
+	position = translate(:profile_position)
+	
+	ln("<div id='user_profile'>")+
+	ln(lt "<p>#{"ID: "+edit_tag(emp.id, edit, "e_id")}</p>")+
+	ln(lt "<p>#{name+edit_tag(emp.name, edit, "e_name")}</p>")+
+	ln(lt "<p>#{position+edit_tag(emp.position, edit, "e_position")}</p>")+
+	ln(lt "<a class='button'#{" style='display: none;'" if !edit} href='/root/edit?id=#{emp.id}'>#{t(:btn_save)}</a>")+
+	ln(lt "<a class='button'#{" style='display: none;'" if edit} href='/root/edit?id=#{emp.id}&edit=1'>#{t(:btn_edit)}</a>")+
+	ln(lt "<a class='button' href='#'>#{t(:btn_reset)}</a>")+
+	ln("</div>")
+  end
+  
+  def edit
+  # Edit employee
+  # Reset Bank of Hours
+	@menu = session[:menu]
+	
+	@header = t(:header_edit)
+	
+	#(id, name, position, workload, bank, last_reset, next_reset)
+	db_users = User.employee
+	@users = []
+	db_users.each do |u|
+		@users << Employee.new( u["user_id"], u["user_name"], u["position_desc_#{session[:locale][0..1]}"], u["position_workload"], u["bank_hours"], u["last_reset"], u["next_reset"] )
+	end
+	
+	@id = params[:id]
+	if @id.present?
+		@html = user_profile(@users[@id], params[:edit].present?)
+	end
+  end
+  
+  def parameters # <<<<<<<<<<<<<<<<<<<<<<<<<< THIS
+  # Set up global parameters for extra hours
+	@menu = session[:menu]
+	
+	#Extra Hours Month Limit 30
+	#Seg-Sab <= Month Limit 1.25
+	#Seg-Sab > Month Limit 1.5
+	#Seg-Sab 5AM > X > 22PM 1.5
+	#Dom-Fer 2.0
+	#On-Call 10% (Mon-Fri) - 15% (Sat-Sun-Hol)
+	#On-Call (required to stay) 20% (Mon-Fri) - 30% (Sat-Sun-Hol)
+	
+  end
+  
+  def setholiday
+  # Set up holidays manipulating proper table with CRUD operations
+  end
+  
+  def auth
+	session[:omniauth] = request.env['omniauth.auth']
+	redirect_to root_path
+  end
+  
+  def failure
+	flash[:error] = t(eval(":msg_"+params[:message]))
+	redirect_to root_path
+  end
+  
+  def newuser
+	user_id = params[:user_id]
+	user_name = params[:user_name]
+	if user_id.present? && user_name.present?
+		u = User.new(:user_id => user_id, :user_name => user_name)
+		u.save
+	end
+	redirect_to root_path
+  end
+
+end

@@ -1,0 +1,4 @@
+
+<%= content_tag(:h3, @header) %>
+<%= select_tag "users", options_from_collection_for_select(@users, @id), :prompt => t(:select_employee) %>
+<%= raw @html if !@html.blank? %>

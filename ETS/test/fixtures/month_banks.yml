@@ -1,0 +1,13 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  bankofhours_id: 1
+  start_hours: 1.5
+  end_hours: 1.5
+  month: 2012-04-04 11:50:23
+
+two:
+  bankofhours_id: 1
+  start_hours: 1.5
+  end_hours: 1.5
+  month: 2012-04-04 11:50:23

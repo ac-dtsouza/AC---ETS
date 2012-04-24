@@ -1,0 +1,15 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  user_id: MyString
+  user_name: MyString
+  user_fullname: MyString
+  position_id: 1
+  bankofhours_id: 1
+
+two:
+  user_id: MyString
+  user_name: MyString
+  user_fullname: MyString
+  position_id: 1
+  bankofhours_id: 1

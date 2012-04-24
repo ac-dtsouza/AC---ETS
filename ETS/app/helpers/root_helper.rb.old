@@ -1,0 +1,24 @@
+module RootHelper
+
+	def ln(str)
+		raw str+"\n"
+	end
+	
+	def lt(str)
+		raw "\t"+str
+	end
+	
+	def options_from_collection_for_select(users, selected)
+		tmp = "\n"
+		users.each do |user|
+			# call methods from class without knowing their names
+			#uid = x.method(eval(":"+id)).call
+			#name = x.method(eval(":"+txt)).call
+			#extra = x.method(eval(":"+hours)).call
+			#tmp += ln lt "<option #{"selected='selected'" if uid.to_i == select.to_i} value='#{uid}' rel='#{extra}'>#{name}</option>"
+			tmp += ln lt "<option #{"selected='selected'" if user["user_id"] == selected} value='#{user["user_id"]}'>#{user["user_name"]}</option>"
+		end
+		raw tmp
+	end
+
+end
